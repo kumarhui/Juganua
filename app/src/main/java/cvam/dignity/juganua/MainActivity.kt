@@ -1,11 +1,11 @@
 ﻿package cvam.dignity.juganua
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.BackEventCompat
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
@@ -17,7 +17,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.FilterFrames
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MergeType
@@ -29,7 +28,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -38,7 +36,7 @@ import cvam.dignity.juganua.common.UsageTracker
 import cvam.dignity.juganua.features.pdf.MergePdfScreen
 import cvam.dignity.juganua.features.pdf.PdfUnlockerScreen
 import cvam.dignity.juganua.features.pdf.id_card_splitter.ExtractIdCardScreen
-import cvam.dignity.juganua.features.postal.IppbCardQrScreen
+import cvam.dignity.juganua.features.postal.IppbCardQrDialog
 import cvam.dignity.juganua.ui.theme.JuganuaTheme
 
 data class ToolAction(
@@ -57,14 +55,11 @@ class MainActivity : ComponentActivity() {
     private val internalSharedUris =
         mutableStateOf<List<Uri>?>(null)
 
-    override fun onCreate(
-        savedInstanceState: Bundle?
-    ) {
+    override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         enableEdgeToEdge()
 
-        parseIntent(intent)
+        handleIncomingIntent(intent)
 
         setContent {
             JuganuaTheme {
@@ -73,12 +68,8 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     JuganuaAppShell(
-                        requestedTool =
-                            internalTargetTool.value,
-
-                        requestedUris =
-                            internalSharedUris.value,
-
+                        requestedTool = internalTargetTool.value,
+                        requestedUris = internalSharedUris.value,
                         onHandled = {
                             internalTargetTool.value = null
                             internalSharedUris.value = null
@@ -89,19 +80,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onNewIntent(
-        intent: Intent
-    ) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-
         setIntent(intent)
-
-        parseIntent(intent)
+        handleIncomingIntent(intent)
     }
 
-    private fun parseIntent(
-        intent: Intent?
-    ) {
+    private fun handleIncomingIntent(intent: Intent?) {
         internalTargetTool.value =
             intent?.getStringExtra("TARGET_TOOL")
 
@@ -119,8 +104,6 @@ fun JuganuaAppShell(
     requestedUris: List<Uri>?,
     onHandled: () -> Unit
 ) {
-    val context = LocalContext.current
-
     var activeTool by rememberSaveable {
         mutableStateOf<String?>(null)
     }
@@ -129,41 +112,63 @@ fun JuganuaAppShell(
         mutableStateOf<List<Uri>?>(null)
     }
 
+    var showIppbQr by rememberSaveable {
+        mutableStateOf(false)
+    }
+
     LaunchedEffect(
         requestedTool,
         requestedUris
     ) {
         if (requestedTool != null) {
-            activeTool = requestedTool
-            sharedUris = requestedUris
+
+            if (
+                requestedTool ==
+                UsageTracker.ID_IPPB_CARD_QR
+            ) {
+                showIppbQr = true
+            } else {
+                activeTool = requestedTool
+                sharedUris = requestedUris
+            }
 
             onHandled()
+        }
+    }
+
+    BackHandler {
+        when {
+            showIppbQr -> {
+                showIppbQr = false
+            }
+
+            activeTool != null -> {
+                activeTool = null
+                sharedUris = null
+            }
+
+            else -> {
+                // Let Activity handle exit.
+            }
         }
     }
 
     val isDashboard =
         activeTool == null
 
-    BackHandler {
-        if (activeTool != null) {
-            activeTool = null
-            sharedUris = null
-        } else {
-            (context as? ComponentActivity)?.finish()
-        }
-    }
-
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        text = if (isDashboard) {
-                            "JUGANUA"
-                        } else {
-                            toolTitle(activeTool)
-                        },
-                        fontWeight = FontWeight.Black,
+                        text =
+                            if (isDashboard) {
+                                "JUGANUA"
+                            } else {
+                                getToolTitle(activeTool)
+                            },
+                        fontWeight =
+                            FontWeight.Black,
                         fontSize = 16.sp
                     )
                 },
@@ -177,8 +182,7 @@ fun JuganuaAppShell(
                             }
                         ) {
                             Icon(
-                                imageVector =
-                                    Icons.AutoMirrored.Filled.ArrowBack,
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back"
                             )
                         }
@@ -203,8 +207,16 @@ fun JuganuaAppShell(
 
                     DashboardGrid(
                         onToolSelect = { toolId ->
-                            activeTool = toolId
-                            sharedUris = null
+
+                            if (
+                                toolId ==
+                                UsageTracker.ID_IPPB_CARD_QR
+                            ) {
+                                showIppbQr = true
+                            } else {
+                                activeTool = toolId
+                                sharedUris = null
+                            }
                         }
                     )
 
@@ -225,20 +237,26 @@ fun JuganuaAppShell(
 
                             sharedUris =
                                 when (data) {
-                                    is Uri ->
-                                        listOf(data)
+                                    is Uri -> listOf(data)
 
                                     is List<*> ->
                                         data.filterIsInstance<Uri>()
 
-                                    else ->
-                                        null
+                                    else -> null
                                 }
                         }
                     )
                 }
             }
         }
+    }
+
+    if (showIppbQr) {
+        IppbCardQrDialog(
+            onDismiss = {
+                showIppbQr = false
+            }
+        )
     }
 }
 
@@ -252,55 +270,35 @@ private fun ToolScreen(
     when (toolId) {
 
         UsageTracker.ID_PDF_UNLOCKER -> {
-
             PdfUnlockerScreen(
                 initialUri =
                     sharedUris?.firstOrNull(),
-
                 onBack = onBack,
-
-                onNavigateToTool =
-                    onNavigate
+                onNavigateToTool = onNavigate
             )
         }
 
         UsageTracker.ID_MERGE_PDF -> {
-
             MergePdfScreen(
                 initialUri =
                     sharedUris?.firstOrNull(),
-
                 initialUris =
                     sharedUris,
-
-                onBack =
-                    onBack
+                onBack = onBack
             )
         }
 
         UsageTracker.ID_ID_CARD_SPLITTER -> {
-
             ExtractIdCardScreen(
                 initialUri =
                     sharedUris?.firstOrNull(),
-
                 initialUris =
                     sharedUris,
-
-                onBack =
-                    onBack
-            )
-        }
-
-        UsageTracker.ID_IPPB_CARD_QR -> {
-
-            IppbCardQrScreen(
                 onBack = onBack
             )
         }
 
         else -> {
-
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
@@ -311,7 +309,7 @@ private fun ToolScreen(
     }
 }
 
-private fun toolTitle(
+private fun getToolTitle(
     toolId: String?
 ): String {
     return when (toolId) {
@@ -324,9 +322,6 @@ private fun toolTitle(
 
         UsageTracker.ID_ID_CARD_SPLITTER ->
             "ID SPLITTER"
-
-        UsageTracker.ID_IPPB_CARD_QR ->
-            "IPPB QR"
 
         else ->
             "JUGANUA"
@@ -373,7 +368,7 @@ private fun DashboardGrid(
 
             ToolAction(
                 title = "IPPB QR",
-                subtitle = "Barcode Utility",
+                subtitle = "Card Reference",
                 icon = Icons.Default.QrCode,
                 uniqueKey =
                     UsageTracker.ID_IPPB_CARD_QR,
@@ -385,13 +380,9 @@ private fun DashboardGrid(
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
-
-        contentPadding =
-            PaddingValues(20.dp),
-
+        contentPadding = PaddingValues(20.dp),
         horizontalArrangement =
             Arrangement.spacedBy(16.dp),
-
         verticalArrangement =
             Arrangement.spacedBy(22.dp)
     ) {
@@ -400,7 +391,6 @@ private fun DashboardGrid(
 
             CircularDashboardTool(
                 tool = tool,
-
                 onClick = {
                     onToolSelect(
                         tool.uniqueKey
@@ -420,7 +410,6 @@ fun CircularDashboardTool(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-
         horizontalAlignment =
             Alignment.CenterHorizontally
     ) {
@@ -438,18 +427,15 @@ fun CircularDashboardTool(
 
             border =
                 BorderStroke(
-                    width = 1.dp,
-
-                    color =
-                        tool.accentColor
-                            .copy(alpha = 0.25f)
+                    1.dp,
+                    tool.accentColor
+                        .copy(alpha = 0.25f)
                 )
         ) {
 
             Box(
                 modifier =
                     Modifier.fillMaxSize(),
-
                 contentAlignment =
                     Alignment.Center
             ) {
