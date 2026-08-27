@@ -1,4 +1,4 @@
-package cvam.dignity.juganua
+﻿package cvam.dignity.juganua
 
 import android.content.Intent
 import android.net.Uri
@@ -241,10 +241,7 @@ fun JuganuaAppShell(requestedTool: String?, requestedUris: List<Uri>?, onHandled
                         target == "0" -> FavoritesGrid(onToolSelect = { activeTool = it })
                         target == "1" -> CategoryList(onCategoryClick = { activeCategory = it })
                         target == "DOCUMENT OPS" -> DocumentOpsScreen(onBack = { activeCategory = null }, onToolClick = { activeTool = it }, onToolLongClick = { toolToPin = it })
-                        target == "IMAGE STUDIO" -> ImageStudioScreen(onBack = { activeCategory = null }, onToolClick = { activeTool = it }, onToolLongClick = { toolToPin = it })
-                        target == "IDENTITY UTILS" -> IdentityUtilsScreen(onBack = { activeCategory = null }, onToolClick = { activeTool = it }, onToolLongClick = { toolToPin = it })
                         target == "POSTAL WORK" -> PostalWorkScreen(onBack = { activeCategory = null }, onToolClick = { activeTool = it }, onToolLongClick = { toolToPin = it })
-                        target == "LABORATORY" -> LaboratoryScreen(onBack = { activeCategory = null }, onToolClick = { activeTool = it }, onToolLongClick = { toolToPin = it })
                         target == "OTHER TOOLS" -> OtherToolsScreen(onBack = { activeCategory = null }, onToolClick = { activeTool = it }, onToolLongClick = { toolToPin = it })
                         else -> Box(Modifier.fillMaxSize(), Alignment.Center) { Text("Coming Soon") }
                     }
@@ -299,10 +296,7 @@ fun CategoryList(onCategoryClick: (String) -> Unit) {
     val categories = remember {
         listOf(
             CategoryGroup("DOCUMENT OPS", "PDF & OCR", Icons.Default.Description, Color(0xFF1B5E20)),
-            CategoryGroup("IMAGE STUDIO", "AI Photo Editing", Icons.Default.AutoAwesome, Color(0xFF4A148C)),
-            CategoryGroup("IDENTITY UTILS", "Official ID Portals", Icons.Default.Badge, Color(0xFFB71C1C)),
             CategoryGroup("POSTAL WORK", "Post & Banking", Icons.Default.LocalPostOffice, Color(0xFF0D47A1)),
-            CategoryGroup("LABORATORY", "Beta Features", Icons.Default.Science, Color(0xFFE65100)),
             CategoryGroup("OTHER TOOLS", "Miscellaneous", Icons.Default.Category, Color(0xFF455A64))
         )
     }
