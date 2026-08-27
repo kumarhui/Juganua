@@ -1,4 +1,4 @@
-package cvam.dignity.juganua.tools
+﻿package cvam.dignity.juganua.tools
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -24,12 +24,8 @@ fun PostalWorkScreen(
     val accentColor = Color(0xFF0D47A1)
     val tools = remember {
         listOf(
-            ToolAction("Articles Scan", "Shipments", Icons.Default.DocumentScanner, UsageTracker.ID_ARTICLE_SCAN, accentColor),
-            ToolAction("RPLI / PLI", "Insurance Calc", Icons.Default.Calculate, UsageTracker.ID_RPLI_CALC, accentColor),
-            ToolAction("Aadhaar QR", "Internal Scan", Icons.Default.QrCodeScanner, UsageTracker.ID_AADHAAR_QR, accentColor),
             ToolAction("IPPB QR", "Barcode Utility", Icons.Default.QrCode, UsageTracker.ID_IPPB_CARD_QR, accentColor),
             // NEW TOOL ADDED
-            ToolAction("IPPB Register", "Digital Records", Icons.Default.AppRegistration, UsageTracker.ID_IPPB_REGISTER, accentColor)
         )
     }
 
