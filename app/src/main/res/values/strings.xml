@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Juganua</string>
+    <string name="desihub_accessibility_description">Juganua accessibility service for screenshot and floating tool controls</string>
 </resources>

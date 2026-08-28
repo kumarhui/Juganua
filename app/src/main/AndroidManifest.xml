@@ -6,6 +6,9 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <application
         android:allowBackup="true"
@@ -75,5 +78,25 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="document_scanner" />
+        <!-- Shared Accessibility Service for DashyHub tools migrated into Juganua -->
+        <service
+            android:name="cvam.dignity.juganua.features.dashytools.service.JuganuaAccessibilityService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/desihub_accessibility_service_config" />
+        </service>
+        <!-- Neon Pen floating overlay -->
+        <service
+            android:name="cvam.dignity.juganua.features.dashytools.neonpen.NeonOverlayService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse" />
     </application>
 </manifest>

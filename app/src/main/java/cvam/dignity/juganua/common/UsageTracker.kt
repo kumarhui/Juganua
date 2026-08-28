@@ -1,4 +1,4 @@
-package cvam.dignity.juganua.common
+﻿package cvam.dignity.juganua.common
 
 import android.content.Context
 import org.json.JSONArray
@@ -17,6 +17,13 @@ object UsageTracker {
     const val ID_MERGE_PDF = "merge_pdf"
     const val ID_ID_CARD_SPLITTER = "id_card_splitter"
     const val ID_IPPB_CARD_QR = "ippb_card_qr"
+    const val ID_PASSPORT_PHOTO_MAKER = "passport_photo_maker"
+    const val ID_NEON_PEN = "neon_pen"
+    const val ID_NEON_PEN_SETTINGS = "neon_pen_settings"
+    const val ID_TOOLS_SETTINGS = "tools_settings"
+    const val ID_SCREENSHOT_TAKER = "screenshot_taker"
+    const val ID_BOGA_SCANNER = "boga_scanner"
+    const val ID_WHATSAPP_CHECKER = "whatsapp_checker"
 
     // Share / Intent Hub tools
     const val ID_PASSPORT_PHOTO = "passport_photo"
@@ -173,3 +180,4 @@ object UsageTracker {
             .apply()
     }
 }
+

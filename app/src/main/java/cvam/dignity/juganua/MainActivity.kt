@@ -1,4 +1,7 @@
-﻿package cvam.dignity.juganua
+package cvam.dignity.juganua
+
+import cvam.dignity.juganua.features.dashytools.settings.JuganuaToolsSettingsScreen
+import cvam.dignity.juganua.features.dashytools.passportphoto.PassportPhotoScreen
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -17,10 +20,16 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DocumentScanner
+import androidx.compose.material.icons.filled.Draw
 import androidx.compose.material.icons.filled.FilterFrames
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MergeType
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.Screenshot
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -33,6 +42,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cvam.dignity.juganua.common.UsageTracker
+import cvam.dignity.juganua.features.dashytools.neonpen.NeonPenScreen
+import cvam.dignity.juganua.features.dashytools.whatsappchecker.WhatsappCheckerScreen
+import cvam.dignity.juganua.features.dashytools.bogascanner.BogaScannerScreen
+import cvam.dignity.juganua.features.dashytools.screenshottaker.ScreenshotTakerScreen
 import cvam.dignity.juganua.features.pdf.MergePdfScreen
 import cvam.dignity.juganua.features.pdf.PdfUnlockerScreen
 import cvam.dignity.juganua.features.pdf.id_card_splitter.ExtractIdCardScreen
@@ -297,6 +310,45 @@ private fun ToolScreen(
                 onBack = onBack
             )
         }
+        UsageTracker.ID_PASSPORT_PHOTO_MAKER -> {
+            PassportPhotoScreen(
+                initialUris = sharedUris,
+                onBack = onBack
+            )
+        }
+
+        UsageTracker.ID_NEON_PEN -> {
+            NeonPenScreen(
+                onBack = onBack,
+                onNavigateToSettings = {
+                    onNavigate(
+                        UsageTracker.ID_NEON_PEN_SETTINGS,
+                        null
+                    )
+                }
+            )
+        }
+
+        UsageTracker.ID_SCREENSHOT_TAKER -> {
+            ScreenshotTakerScreen(
+                onBack = onBack
+            )
+        }
+
+        UsageTracker.ID_BOGA_SCANNER -> {
+            BogaScannerScreen(
+                onBack = onBack
+            )
+        }
+
+        UsageTracker.ID_WHATSAPP_CHECKER -> {
+            WhatsappCheckerScreen()
+        }
+        UsageTracker.ID_TOOLS_SETTINGS -> {
+            JuganuaToolsSettingsScreen(
+                onBack = onBack
+            )
+        }
 
         else -> {
             Box(
@@ -374,6 +426,64 @@ private fun DashboardGrid(
                     UsageTracker.ID_IPPB_CARD_QR,
                 accentColor =
                     Color(0xFFEF6C00)
+            ),
+            ToolAction(
+                title = "Passport Photo",
+                subtitle = "Photo Maker",
+                icon = Icons.Default.PhotoCamera,
+                uniqueKey =
+                    UsageTracker.ID_PASSPORT_PHOTO_MAKER,
+                accentColor =
+                    Color(0xFF00897B)
+            ),
+
+            ToolAction(
+                title = "Neon Pen",
+                subtitle = "Screen Drawing",
+                icon = Icons.Default.Draw,
+                uniqueKey =
+                    UsageTracker.ID_NEON_PEN,
+                accentColor =
+                    Color(0xFFD81B60)
+            ),
+
+            ToolAction(
+                title = "Screenshot",
+                subtitle = "Capture & Crop",
+                icon = Icons.Default.Screenshot,
+                uniqueKey =
+                    UsageTracker.ID_SCREENSHOT_TAKER,
+                accentColor =
+                    Color(0xFF5E35B1)
+            ),
+
+            ToolAction(
+                title = "Boga Scanner",
+                subtitle = "ID & Documents",
+                icon = Icons.Default.DocumentScanner,
+                uniqueKey =
+                    UsageTracker.ID_BOGA_SCANNER,
+                accentColor =
+                    Color(0xFF3949AB)
+            ),
+
+            ToolAction(
+                title = "WhatsApp Checker",
+                subtitle = "Check Number",
+                icon = Icons.Default.Phone,
+                uniqueKey =
+                    UsageTracker.ID_WHATSAPP_CHECKER,
+                accentColor =
+                    Color(0xFF2E7D32)
+            ),
+            ToolAction(
+                title = "Settings",
+                subtitle = "Tool Permissions",
+                icon = Icons.Default.Settings,
+                uniqueKey =
+                    UsageTracker.ID_TOOLS_SETTINGS,
+                accentColor =
+                    Color(0xFF455A64)
             )
         )
     }
@@ -476,3 +586,7 @@ fun CircularDashboardTool(
         )
     }
 }
+
+
+
+
