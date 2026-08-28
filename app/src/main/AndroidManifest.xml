@@ -1,13 +1,29 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Network -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+
+    <!-- Storage - Android 12 and below -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
+    <!-- Android 13+ -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
+    <!-- Floating windows -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- Foreground services -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
+    <!-- Android 14+ special-use foreground service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <application
@@ -21,82 +37,128 @@
         android:theme="@style/Theme.Juganua"
         tools:targetApi="31">
 
-        <!-- FIX: Added Sample AdMob App ID to prevent crash on startup -->
-        <!-- Even if you don't use ads, the SDK requires this if it's in your dependencies -->
+        <!-- AdMob -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713"/>
+            android:value="ca-app-pub-3940256099942544~3347511713" />
 
+        <!-- Main Activity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.Juganua">
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
         </activity>
 
+        <!-- Receive shared images/PDFs/files -->
         <activity
             android:name=".common.IntentReceiveActivity"
             android:exported="true"
             android:label="Studio Hub"
             android:theme="@style/Theme.Juganua">
+
+            <!-- Open/View -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+
                 <data android:scheme="content" />
                 <data android:scheme="file" />
                 <data android:mimeType="*/*" />
             </intent-filter>
+
+            <!-- Share one file -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
+
                 <category android:name="android.intent.category.DEFAULT" />
+
                 <data android:mimeType="*/*" />
             </intent-filter>
+
+            <!-- Share multiple files -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND_MULTIPLE" />
+
                 <category android:name="android.intent.category.DEFAULT" />
+
                 <data android:mimeType="*/*" />
             </intent-filter>
+
         </activity>
 
+        <!-- uCrop -->
         <activity
             android:name="com.yalantis.ucrop.UCropActivity"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
 
+        <!-- FileProvider -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="cvam.dignity.juganua.provider"
             android:exported="false"
             android:grantUriPermissions="true">
+
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
+
         </provider>
 
+        <!-- ML Kit Document Scanner -->
         <meta-data
             android:name="com.google.mlkit.vision.DEPENDENCIES"
             android:value="document_scanner" />
-        <!-- Shared Accessibility Service for DashyHub tools migrated into Juganua -->
+
+        <!--
+            SHARED ACCESSIBILITY SERVICE
+
+            Used by:
+            - Neon Pen
+            - Screenshot Taker
+
+            This must appear ONLY ONCE.
+        -->
         <service
-            android:name="cvam.dignity.juganua.features.dashytools.service.JuganuaAccessibilityService"
+            android:name="cvam.dignity.juganua.features.settings.JuganuaAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="true">
+
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
             </intent-filter>
+
             <meta-data
                 android:name="android.accessibilityservice"
                 android:resource="@xml/desihub_accessibility_service_config" />
+
         </service>
-        <!-- Neon Pen floating overlay -->
+
+        <!--
+            NEON PEN OVERLAY SERVICE
+
+            This is separate from the Accessibility Service.
+        -->
         <service
-            android:name="cvam.dignity.juganua.features.dashytools.neonpen.NeonOverlayService"
+            android:name="cvam.dignity.juganua.features.neonpen.NeonOverlayService"
             android:exported="false"
-            android:foregroundServiceType="specialUse" />
+            android:foregroundServiceType="specialUse">
+
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="screen_overlay_for_neon_pen" />
+
+        </service>
+
     </application>
+
 </manifest>

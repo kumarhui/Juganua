@@ -1,7 +1,7 @@
 package cvam.dignity.juganua
 
-import cvam.dignity.juganua.features.dashytools.settings.JuganuaToolsSettingsScreen
-import cvam.dignity.juganua.features.dashytools.passportphoto.PassportPhotoScreen
+import cvam.dignity.juganua.features.settings.JuganuaToolsSettingsScreen
+import cvam.dignity.juganua.features.passportphoto.PassportPhotoScreen
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -42,14 +42,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cvam.dignity.juganua.common.UsageTracker
-import cvam.dignity.juganua.features.dashytools.neonpen.NeonPenScreen
-import cvam.dignity.juganua.features.dashytools.whatsappchecker.WhatsappCheckerScreen
-import cvam.dignity.juganua.features.dashytools.bogascanner.BogaScannerScreen
-import cvam.dignity.juganua.features.dashytools.screenshottaker.ScreenshotTakerScreen
-import cvam.dignity.juganua.features.pdf.MergePdfScreen
-import cvam.dignity.juganua.features.pdf.PdfUnlockerScreen
-import cvam.dignity.juganua.features.pdf.id_card_splitter.ExtractIdCardScreen
-import cvam.dignity.juganua.features.postal.IppbCardQrDialog
+import cvam.dignity.juganua.features.neonpen.NeonPenScreen
+import cvam.dignity.juganua.features.whatsappchecker.WhatsappCheckerScreen
+import cvam.dignity.juganua.features.bogascanner.BogaScannerScreen
+import cvam.dignity.juganua.features.screenshottaker.ScreenshotTakerScreen
+import cvam.dignity.juganua.features.mergepdf.MergePdfScreen
+import cvam.dignity.juganua.features.pdfunlocker.PdfUnlockerScreen
+import cvam.dignity.juganua.features.idcardsplitter.ExtractIdCardScreen
+import cvam.dignity.juganua.features.ippbcardqr.IppbCardQrDialog
 import cvam.dignity.juganua.ui.theme.JuganuaTheme
 
 data class ToolAction(
