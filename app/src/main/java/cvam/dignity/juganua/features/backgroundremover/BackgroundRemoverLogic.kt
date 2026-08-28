@@ -1,4 +1,4 @@
-package cvam.dignity.juganua.features.backgroundremover
+﻿package cvam.dignity.juganua.features.backgroundremover
 
 import android.content.ContentValues
 import android.content.Context
@@ -288,38 +288,46 @@ object BackgroundRemoverLogic {
 
         return try {
 
-            val directory =
-                File(
-                    context.cacheDir,
-                    "background_remover"
-                )
+            val directory = File(
+                context.cacheDir,
+                "background_remover"
+            )
 
             if (!directory.exists()) {
                 directory.mkdirs()
             }
 
-            val file =
-                File(
-                    directory,
-                    "juganua_background_removed.jpg"
-                )
+            val file = File(
+                directory,
+                "juganua_background_removed_${System.currentTimeMillis()}.jpg"
+            )
 
             FileOutputStream(file).use { output ->
 
-                bitmap.compress(
+                val success = bitmap.compress(
                     Bitmap.CompressFormat.JPEG,
                     95,
                     output
                 )
+
+                if (!success) {
+                    return null
+                }
+            }
+
+            if (!file.exists() || file.length() == 0L) {
+                return null
             }
 
             FileProvider.getUriForFile(
                 context,
-                "${context.packageName}.fileprovider",
+                "cvam.dignity.juganua.provider",
                 file
             )
 
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+
+            e.printStackTrace()
             null
         }
     }

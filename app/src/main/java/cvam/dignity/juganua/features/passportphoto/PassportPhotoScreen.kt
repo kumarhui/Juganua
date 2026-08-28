@@ -112,11 +112,38 @@ fun PassportPhotoScreen(
     BackHandler(onBack = onBack)
 
     Scaffold(
-        topBar = { }   ) { innerPadding ->
+        topBar = {
+
+            TopAppBar(
+
+                title = {
+                    Text(
+                        text = "Passport Photo"
+                    )
+                },
+
+                navigationIcon = {
+
+                    IconButton(
+                        onClick = onBack
+                    ) {
+
+                        Icon(
+                            imageVector =
+                                Icons.AutoMirrored.Filled.ArrowBack,
+
+                            contentDescription =
+                                "Back"
+                        )
+                    }
+                }
+            )
+        }
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding()
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)

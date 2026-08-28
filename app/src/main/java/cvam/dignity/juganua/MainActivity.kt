@@ -172,37 +172,56 @@ fun JuganuaAppShell(
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text =
-                            if (isDashboard) {
-                                "JUGANUA"
-                            } else {
-                                getToolTitle(activeTool)
-                            },
-                        fontWeight =
-                            FontWeight.Black,
-                        fontSize = 16.sp
-                    )
-                },
 
-                navigationIcon = {
-                    if (!isDashboard) {
-                        IconButton(
-                            onClick = {
-                                activeTool = null
-                                sharedUris = null
+            /*
+             * Passport Photo has its own screen layout.
+             * Do not show Juganua's global top bar there.
+             */
+            if (
+                activeTool != UsageTracker.ID_PASSPORT_PHOTO_MAKER
+            ) {
+
+                CenterAlignedTopAppBar(
+
+                    title = {
+                        Text(
+                            text =
+                                if (isDashboard) {
+                                    "JUGANUA"
+                                } else {
+                                    getToolTitle(activeTool)
+                                },
+
+                            fontWeight =
+                                FontWeight.Black,
+
+                            fontSize = 16.sp
+                        )
+                    },
+
+                    navigationIcon = {
+
+                        if (!isDashboard) {
+
+                            IconButton(
+                                onClick = {
+                                    activeTool = null
+                                    sharedUris = null
+                                }
+                            ) {
+
+                                Icon(
+                                    imageVector =
+                                        Icons.AutoMirrored.Filled.ArrowBack,
+
+                                    contentDescription =
+                                        "Back"
+                                )
                             }
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back"
-                            )
                         }
                     }
-                }
-            )
+                )
+            }
         }
     ) { paddingValues ->
 

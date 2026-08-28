@@ -217,7 +217,15 @@ fun IntentHubScreen(
                     subtitle = "Print Sheet",
                     icon = Icons.Default.Portrait,
                     uniqueKey =
-                        UsageTracker.ID_PASSPORT_PHOTO
+                        UsageTracker.ID_PASSPORT_PHOTO_MAKER
+                ),
+
+                ToolAction(
+                    title = "Background Remover",
+                    subtitle = "Remove & Replace",
+                    icon = Icons.Default.PersonRemove,
+                    uniqueKey =
+                        UsageTracker.ID_BACKGROUND_REMOVER
                 ),
 
                 ToolAction(

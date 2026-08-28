@@ -20,35 +20,27 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.print.PrintHelper
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BackgroundRemoverScreen(
     initialUri: Uri? = null,
     onBack: () -> Unit
 ) {
-
     val context = LocalContext.current
 
     var state by remember {
@@ -63,72 +55,72 @@ fun BackgroundRemoverScreen(
         )
     }
 
-    val picker =
-        rememberLauncherForActivityResult(
-            ActivityResultContracts.GetContent()
-        ) { uri ->
+    val picker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
 
-            if (uri != null) {
+        if (uri != null) {
+            selectedBackground = BackgroundStyle.SKY_BLUE
 
-                selectedBackground =
-                    BackgroundStyle.SKY_BLUE
-
-                state =
-                    BackgroundRemovalState.LoadingImage(
-                        uri
-                    )
-            }
+            state = BackgroundRemovalState.LoadingImage(
+                uri = uri
+            )
         }
+    }
 
     fun openGallery() {
         picker.launch("image/*")
     }
 
+    /*
+     * Handle an image passed into this tool from another
+     * part of Juganua.
+     */
     LaunchedEffect(initialUri) {
 
         if (
             initialUri != null &&
             state is BackgroundRemovalState.Empty
         ) {
-
-            state =
-                BackgroundRemovalState.LoadingImage(
-                    initialUri
-                )
+            state = BackgroundRemovalState.LoadingImage(
+                uri = initialUri
+            )
         }
     }
 
+    /*
+     * Load image and start ML Kit processing.
+     */
     LaunchedEffect(state) {
 
         val loading =
             state as? BackgroundRemovalState.LoadingImage
                 ?: return@LaunchedEffect
 
-        val bitmap =
-            kotlinx.coroutines.withContext(
-                kotlinx.coroutines.Dispatchers.IO
-            ) {
-                BackgroundRemoverLogic.loadBitmap(
-                    context,
-                    loading.uri
-                )
-            }
+        val bitmap = kotlinx.coroutines.withContext(
+            kotlinx.coroutines.Dispatchers.IO
+        ) {
+            BackgroundRemoverLogic.loadBitmap(
+                context = context,
+                uri = loading.uri
+            )
+        }
 
         if (bitmap == null) {
 
-            state =
-                BackgroundRemovalState.Error(
-                    message =
-                        "Couldn't open this image."
-                )
+            state = BackgroundRemovalState.Error(
+                message = "Couldn't open this image."
+            )
 
             return@LaunchedEffect
         }
 
-        state =
-            BackgroundRemovalState.Processing(
-                original = bitmap
-            )
+        /*
+         * Show original image while ML Kit is processing.
+         */
+        state = BackgroundRemovalState.Processing(
+            original = bitmap
+        )
 
         BackgroundRemoverLogic.removeBackground(
 
@@ -137,279 +129,288 @@ fun BackgroundRemoverScreen(
             onSuccess = { foreground ->
 
                 val result =
-                    BackgroundRemoverLogic
-                        .createResultBitmap(
-                            foreground,
-                            selectedBackground
-                        )
-
-                state =
-                    BackgroundRemovalState.Ready(
-                        original = bitmap,
+                    BackgroundRemoverLogic.createResultBitmap(
                         foreground = foreground,
-                        result = result,
-                        background =
-                            selectedBackground
+                        style = selectedBackground
                     )
+
+                state = BackgroundRemovalState.Ready(
+                    original = bitmap,
+                    foreground = foreground,
+                    result = result,
+                    background = selectedBackground
+                )
             },
 
             onFailure = { exception ->
 
-                state =
-                    BackgroundRemovalState.Error(
-                        message =
-                            exception.message
-                                ?: "Couldn't remove the background.",
-                        original = bitmap
-                    )
+                state = BackgroundRemovalState.Error(
+                    message =
+                        exception.message
+                            ?: "Couldn't remove the background.",
+                    original = bitmap
+                )
             }
         )
     }
 
-    Scaffold(
-
-        topBar = {
-
-            TopAppBar(
-
-                title = {
-                    Text("Background Remover")
-                },
-
-                navigationIcon = {
-
-                    IconButton(
-                        onClick = onBack
-                    ) {
-
-                        Icon(
-                            imageVector =
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription =
-                                "Back"
-                        )
-                    }
-                },
-
-                actions = {
-
-                    if (
-                        state is BackgroundRemovalState.Ready
-                    ) {
-
-                        IconButton(
-                            onClick = {
-                                openGallery()
-                            }
-                        ) {
-
-                            Icon(
-                                imageVector =
-                                    Icons.Default.AddPhotoAlternate,
-                                contentDescription =
-                                    "Process another image"
-                            )
-                        }
-                    }
-                }
+    /*
+     * IMPORTANT:
+     *
+     * No Scaffold / TopAppBar here.
+     *
+     * MainActivity already provides Juganua's global
+     * top bar and back button.
+     */
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(
+                rememberScrollState()
             )
-        }
+            .padding(16.dp),
 
-    ) { padding ->
+        verticalArrangement =
+            Arrangement.spacedBy(18.dp)
+    ) {
 
-        Column(
+        when (val current = state) {
 
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(
-                    rememberScrollState()
+            /*
+             * ------------------------------------------------
+             * EMPTY
+             * ------------------------------------------------
+             */
+            BackgroundRemovalState.Empty -> {
+
+                BackgroundPreview(
+                    bitmap = null
                 )
-                .padding(16.dp),
 
-            verticalArrangement =
-                Arrangement.spacedBy(18.dp)
-        ) {
+                Button(
+                    onClick = {
+                        openGallery()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
 
-            when (val current = state) {
+                    Icon(
+                        imageVector =
+                            Icons.Default.AddPhotoAlternate,
+                        contentDescription = null
+                    )
 
-                BackgroundRemovalState.Empty -> {
+                    Spacer(
+                        modifier = Modifier.width(6.dp)
+                    )
+
+                    Text(
+                        text = "Choose from Gallery"
+                    )
+                }
+            }
+
+            /*
+             * ------------------------------------------------
+             * LOADING IMAGE
+             * ------------------------------------------------
+             */
+            is BackgroundRemovalState.LoadingImage -> {
+
+                val previewBitmap =
+                    BackgroundRemoverLogic.loadBitmap(
+                        context = context,
+                        uri = current.uri
+                    )
+
+                BackgroundPreview(
+                    bitmap = previewBitmap
+                )
+            }
+
+            /*
+             * ------------------------------------------------
+             * ML KIT PROCESSING
+             * ------------------------------------------------
+             */
+            is BackgroundRemovalState.Processing -> {
+
+                Box(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
 
                     BackgroundPreview(
-                        bitmap = null
+                        bitmap = current.original
                     )
+
+                    ProcessingOverlay()
+                }
+            }
+
+            /*
+             * ------------------------------------------------
+             * READY
+             * ------------------------------------------------
+             */
+            is BackgroundRemovalState.Ready -> {
+
+                /*
+                 * Final image preview.
+                 */
+                BackgroundPreview(
+                    bitmap = current.result
+                )
+
+                /*
+                 * Five background choices.
+                 */
+                BackgroundSelector(
+                    selected = selectedBackground,
+
+                    onSelected = { newStyle ->
+
+                        selectedBackground = newStyle
+
+                        /*
+                         * IMPORTANT:
+                         *
+                         * Do NOT run ML Kit again.
+                         *
+                         * We already have the foreground bitmap,
+                         * so only the background is regenerated.
+                         */
+                        val newResult =
+                            BackgroundRemoverLogic
+                                .createResultBitmap(
+                                    foreground =
+                                        current.foreground,
+                                    style =
+                                        newStyle
+                                )
+
+                        state = current.copy(
+                            result = newResult,
+                            background = newStyle
+                        )
+                    }
+                )
+
+                /*
+                 * Save / Print / Open / More
+                 */
+                BackgroundActionBar(
+
+                    enabled = true,
+
+                    onSave = {
+
+                        val uri =
+                            BackgroundRemoverLogic
+                                .saveBitmap(
+                                    context = context,
+                                    bitmap = current.result
+                                )
+
+                        Toast.makeText(
+                            context,
+
+                            if (uri != null) {
+                                "Image saved to Gallery"
+                            } else {
+                                "Couldn't save image"
+                            },
+
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    },
+
+                    onPrint = {
+
+                        printBitmap(
+                            context = context,
+                            bitmap = current.result
+                        )
+                    },
+
+                    onShare = {
+
+                        shareBitmap(
+                            context = context,
+                            bitmap = current.result
+                        )
+                    },
+
+                    onAddImage = {
+
+                        /*
+                         * Select another image without
+                         * returning to the dashboard.
+                         */
+                        openGallery()
+                    }
+                )
+                Button(
+                    onClick = {
+                        sendToIntentHub(
+                            context = context,
+                            bitmap = current.result
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+
+                    Text(
+                        text = "Send to Intent Hub"
+                    )
+                }
+            }
+
+            /*
+             * ------------------------------------------------
+             * ERROR
+             * ------------------------------------------------
+             */
+            is BackgroundRemovalState.Error -> {
+
+                current.original?.let { bitmap ->
+
+                    BackgroundPreview(
+                        bitmap = bitmap
+                    )
+                }
+
+                Text(
+                    text = current.message,
+                    color =
+                        MaterialTheme.colorScheme.error
+                )
+
+                Row(
+                    modifier =
+                        Modifier.fillMaxWidth(),
+
+                    horizontalArrangement =
+                        Arrangement.spacedBy(12.dp)
+                ) {
 
                     Button(
                         onClick = {
                             openGallery()
                         },
                         modifier =
-                            Modifier.fillMaxWidth()
+                            Modifier.weight(1f)
                     ) {
-
-                        Icon(
-                            imageVector =
-                                Icons.Default.AddPhotoAlternate,
-                            contentDescription = null
-                        )
-
-                        Spacer(
-                            modifier =
-                                Modifier.width(6.dp)
-                        )
-
-                        Text("Choose from Gallery")
+                        Text("Choose Another")
                     }
-                }
 
-                is BackgroundRemovalState.LoadingImage -> {
-
-                    val previewBitmap =
-                        BackgroundRemoverLogic
-                            .loadBitmap(
-                                context,
-                                current.uri
-                            )
-
-                    BackgroundPreview(
-                        bitmap = previewBitmap
-                    )
-                }
-
-                is BackgroundRemovalState.Processing -> {
-
-                    Box(
-                        modifier =
-                            Modifier.fillMaxWidth()
-                    ) {
-
-                        BackgroundPreview(
-                            bitmap = current.original
-                        )
-
-                        ProcessingOverlay()
-                    }
-                }
-
-                is BackgroundRemovalState.Ready -> {
-
-                    BackgroundPreview(
-                        bitmap = current.result
-                    )
-
-                    BackgroundSelector(
-
-                        selected =
-                            selectedBackground,
-
-                        onSelected = { newStyle ->
-
-                            selectedBackground =
-                                newStyle
-
-                            val newResult =
-                                BackgroundRemoverLogic
-                                    .createResultBitmap(
-                                        current.foreground,
-                                        newStyle
-                                    )
-
-                            state =
-                                current.copy(
-                                    result = newResult,
-                                    background = newStyle
-                                )
-                        }
-                    )
-
-                    BackgroundActionBar(
-
-                        enabled = true,
-
-                        onSave = {
-
-                            val uri =
-                                BackgroundRemoverLogic
-                                    .saveBitmap(
-                                        context,
-                                        current.result
-                                    )
-
-                            Toast.makeText(
-                                context,
-                                if (uri != null)
-                                    "Image saved to Gallery"
-                                else
-                                    "Couldn't save image",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        },
-
-                        onPrint = {
-
-                            printBitmap(
-                                context,
-                                current.result
-                            )
-                        },
-
-                        onShare = {
-
-                            shareBitmap(
-                                context,
-                                current.result
-                            )
-                        },
-
-                        onAddImage = {
+                    Button(
+                        onClick = {
                             openGallery()
-                        }
-                    )
-                }
-
-                is BackgroundRemovalState.Error -> {
-
-                    current.original?.let {
-
-                        BackgroundPreview(
-                            bitmap = it
-                        )
-                    }
-
-                    Text(
-                        text = current.message,
-                        color =
-                            MaterialTheme
-                                .colorScheme
-                                .error
-                    )
-
-                    Row(
+                        },
                         modifier =
-                            Modifier.fillMaxWidth(),
-                        horizontalArrangement =
-                            Arrangement.spacedBy(12.dp)
+                            Modifier.weight(1f)
                     ) {
-
-                        Button(
-                            onClick = {
-                                openGallery()
-                            },
-                            modifier =
-                                Modifier.weight(1f)
-                        ) {
-                            Text("Choose Another")
-                        }
-
-                        Button(
-                            onClick = {
-                                openGallery()
-                            },
-                            modifier =
-                                Modifier.weight(1f)
-                        ) {
-                            Text("Retry")
-                        }
+                        Text("Retry")
                     }
                 }
             }
@@ -417,6 +418,11 @@ fun BackgroundRemoverScreen(
     }
 }
 
+/*
+ * ------------------------------------------------------------
+ * PRINT
+ * ------------------------------------------------------------
+ */
 private fun printBitmap(
     context: Context,
     bitmap: Bitmap
@@ -448,6 +454,11 @@ private fun printBitmap(
     }
 }
 
+/*
+ * ------------------------------------------------------------
+ * OPEN IN OTHER APPS
+ * ------------------------------------------------------------
+ */
 private fun shareBitmap(
     context: Context,
     bitmap: Bitmap
@@ -456,8 +467,8 @@ private fun shareBitmap(
     val uri =
         BackgroundRemoverLogic
             .createShareUri(
-                context,
-                bitmap
+                context = context,
+                bitmap = bitmap
             )
 
     if (uri == null) {
@@ -500,6 +511,64 @@ private fun shareBitmap(
         Toast.makeText(
             context,
             "No compatible app found",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+private fun sendToIntentHub(
+    context: Context,
+    bitmap: Bitmap
+) {
+    val uri =
+        BackgroundRemoverLogic.createShareUri(
+            context = context,
+            bitmap = bitmap
+        )
+
+    if (uri == null) {
+        Toast.makeText(
+            context,
+            "Couldn't prepare image",
+            Toast.LENGTH_SHORT
+        ).show()
+
+        return
+    }
+
+    val intent =
+        Intent(
+            context,
+            cvam.dignity.juganua.common.IntentReceiveActivity::class.java
+        ).apply {
+
+            action = Intent.ACTION_SEND
+
+            type = "image/jpeg"
+
+            putExtra(
+                Intent.EXTRA_STREAM,
+                uri
+            )
+
+            addFlags(
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+
+            addFlags(
+                Intent.FLAG_ACTIVITY_CLEAR_TOP
+            )
+        }
+
+    try {
+
+        context.startActivity(intent)
+
+    } catch (_: Exception) {
+
+        Toast.makeText(
+            context,
+            "Unable to open Intent Hub",
             Toast.LENGTH_SHORT
         ).show()
     }
