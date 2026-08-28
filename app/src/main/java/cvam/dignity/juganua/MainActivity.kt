@@ -1,7 +1,8 @@
-package cvam.dignity.juganua
+﻿package cvam.dignity.juganua
 
 import cvam.dignity.juganua.features.settings.JuganuaToolsSettingsScreen
 import cvam.dignity.juganua.features.passportphoto.PassportPhotoScreen
+import cvam.dignity.juganua.features.backgroundremover.BackgroundRemoverScreen
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -317,6 +318,13 @@ private fun ToolScreen(
             )
         }
 
+        UsageTracker.ID_BACKGROUND_REMOVER -> {
+            BackgroundRemoverScreen(
+                initialUri = sharedUris?.firstOrNull(),
+                onBack = onBack
+            )
+        }
+
         UsageTracker.ID_NEON_PEN -> {
             NeonPenScreen(
                 onBack = onBack,
@@ -374,6 +382,27 @@ private fun getToolTitle(
 
         UsageTracker.ID_ID_CARD_SPLITTER ->
             "ID SPLITTER"
+
+        UsageTracker.ID_PASSPORT_PHOTO_MAKER ->
+            "PASSPORT PHOTO"
+
+        UsageTracker.ID_BACKGROUND_REMOVER ->
+            "BACKGROUND REMOVER"
+
+        UsageTracker.ID_NEON_PEN ->
+            "NEON PEN"
+
+        UsageTracker.ID_SCREENSHOT_TAKER ->
+            "SCREENSHOT"
+
+        UsageTracker.ID_BOGA_SCANNER ->
+            "BOGA SCANNER"
+
+        UsageTracker.ID_WHATSAPP_CHECKER ->
+            "WHATSAPP CHECKER"
+
+        UsageTracker.ID_TOOLS_SETTINGS ->
+            "SETTINGS"
 
         else ->
             "JUGANUA"
@@ -435,6 +464,16 @@ private fun DashboardGrid(
                     UsageTracker.ID_PASSPORT_PHOTO_MAKER,
                 accentColor =
                     Color(0xFF00897B)
+            ),
+
+            ToolAction(
+                title = "Background Remover",
+                subtitle = "Remove & Replace",
+                icon = Icons.Default.PhotoCamera,
+                uniqueKey =
+                    UsageTracker.ID_BACKGROUND_REMOVER,
+                accentColor =
+                    Color(0xFF5C6BC0)
             ),
 
             ToolAction(
@@ -586,6 +625,9 @@ fun CircularDashboardTool(
         )
     }
 }
+
+
+
 
 
 

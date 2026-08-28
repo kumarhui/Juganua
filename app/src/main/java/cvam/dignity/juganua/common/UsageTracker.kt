@@ -13,6 +13,8 @@ data class PinnedToolInfo(
 object UsageTracker {
 
     // Dashboard / core tools
+
+    const val ID_BACKGROUND_REMOVER = "background_remover"
     const val ID_PDF_UNLOCKER = "pdf_unlocker"
     const val ID_MERGE_PDF = "merge_pdf"
     const val ID_ID_CARD_SPLITTER = "id_card_splitter"

@@ -117,7 +117,7 @@
         <!-- ML Kit Document Scanner -->
         <meta-data
             android:name="com.google.mlkit.vision.DEPENDENCIES"
-            android:value="document_scanner" />
+            android:value="subject_segment,document_scanner" />
 
         <!--
             SHARED ACCESSIBILITY SERVICE
