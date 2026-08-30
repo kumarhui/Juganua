@@ -293,12 +293,10 @@ object PassportPhotoLogic {
              * Center the photo strip inside that safe area.
              * A6 keeps the existing centered behavior.
              */
+            // Keep at least 1 mm of white space at both left and right
+            // edges of every generated sheet.
             val sideMargin =
-                if (paperSize == PhotoPaperSize.A4) {
-                    1f * mmToPx
-                } else {
-                    0f
-                }
+                1f * mmToPx
 
             val safeWidth =
                 width.toFloat() -

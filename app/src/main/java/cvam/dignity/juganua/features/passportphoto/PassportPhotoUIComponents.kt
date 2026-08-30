@@ -82,11 +82,16 @@ fun BackgroundRemovalPreview(
                 modifier =
                     Modifier
                         .fillMaxHeight()
-                        .aspectRatio(0.75f)
-                        .clip(
-                            RoundedCornerShape(16.dp)
+                        .aspectRatio(30f / 40f)
+                        .clip(RoundedCornerShape(18.dp))
+                        .border(
+                            1.dp,
+                            MaterialTheme.colorScheme.outlineVariant,
+                            RoundedCornerShape(18.dp)
                         ),
 
+                // The cropped passport frame must remain exact; never
+                // use ContentScale.Crop here.
                 contentScale =
                     ContentScale.Fit
             )
@@ -617,21 +622,31 @@ fun PassportSheetPreview(
 
                 if (bitmap != null) {
 
-                    Image(
-                        bitmap =
-                            bitmap.asImageBitmap(),
-
-                        contentDescription =
-                            "A6 result",
-
+                    Surface(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .height(360.dp),
+                                .clip(RoundedCornerShape(18.dp)),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        tonalElevation = 1.dp
+                    ) {
+                        Image(
+                            bitmap =
+                                bitmap.asImageBitmap(),
 
-                        contentScale =
-                            ContentScale.Fit
-                    )
+                            contentDescription =
+                                "A6 result",
+
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(360.dp)
+                                    .padding(4.dp),
+
+                            contentScale =
+                                ContentScale.Fit
+                        )
+                    }
 
                 } else {
 

@@ -11,11 +11,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -632,16 +634,17 @@ fun PassportPhotoScreen(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .height(360.dp)
-                                .clip(
-                                    RoundedCornerShape(
-                                        18.dp
-                                    )
-                                )
+                                .height(384.dp)
+                                .clip(RoundedCornerShape(22.dp))
                                 .background(
                                     backgroundBrush(
                                         selectedBackground
                                     )
+                                )
+                                .border(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.outlineVariant,
+                                    RoundedCornerShape(22.dp)
                                 ),
 
                         contentAlignment =
@@ -661,8 +664,11 @@ fun PassportPhotoScreen(
                                 modifier =
                                     Modifier
                                         .fillMaxHeight()
-                                        .fillMaxWidth(),
+                                        .aspectRatio(30f / 40f)
+                                        .clip(RoundedCornerShape(16.dp)),
 
+                                // Never crop or stretch the processed result.
+                                // The visible card uses the exact 30:40 passport ratio.
                                 contentScale =
                                     ContentScale.Fit
                             )
@@ -1006,15 +1012,15 @@ fun PassportPhotoScreen(
 
                                 Image(
                                     bitmap =
-                                        bitmap
-                                            .asImageBitmap(),
+                                        bitmap.asImageBitmap(),
 
                                     contentDescription =
                                         "A6 result",
 
                                     modifier =
                                         Modifier
-                                            .fillMaxSize(),
+                                            .fillMaxSize()
+                                            .padding(4.dp),
 
                                     contentScale =
                                         ContentScale.Fit

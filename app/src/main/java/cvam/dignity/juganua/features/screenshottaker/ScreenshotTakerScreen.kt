@@ -8,6 +8,7 @@ import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.os.ParcelFileDescriptor
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -46,6 +47,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -92,7 +94,7 @@ private val StatusActiveText = Color(0xFF047857)
 
 /**
  * Main Jetpack Compose Screen for Testbook Shot Taker.
- * Displays accessibility status, delegates gallery rendering to ScreenshotGallery,
+ * Displays live accessibility/overlay statuses, delegates gallery rendering to ScreenshotGallery asynchronously,
  * and handles PDF export and OCR tools.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -104,15 +106,22 @@ fun ScreenshotTakerScreen(
     val scope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    // Live Permission and Feature Status States
     var isAccessibilityEnabled by remember {
         mutableStateOf(SharedPermissionManager.isScreenshotAccessibilityEnabled(context))
+    }
+    var hasOverlayPermission by remember {
+        mutableStateOf(SharedPermissionManager.hasOverlayPermission(context))
     }
     var isFloatingShowing by remember {
         mutableStateOf(JuganuaAccessibilityService.isScreenshotControlVisible())
     }
 
+    // Async Gallery Loading States
+    var isGalleryLoading by remember { mutableStateOf(true) }
     var galleryItems by remember { mutableStateOf<List<ScreenshotItem>>(emptyList()) }
 
+    // PDF and OCR Tooling States
     var showPdfConfigDialog by remember { mutableStateOf(false) }
     var showPdfPreviewDialog by remember { mutableStateOf(false) }
     var isPdfGenerating by remember { mutableStateOf(false) }
@@ -125,13 +134,23 @@ fun ScreenshotTakerScreen(
     var ocrProgressText by remember { mutableStateOf("") }
 
     fun refreshGallery() {
-        galleryItems = ScreenshotManager.getSavedScreenshots(context)
+        scope.launch {
+            isGalleryLoading = true
+            // Shift IO operations to background thread so main UI doesn't block on heavy file reading
+            val items = withContext(Dispatchers.IO) {
+                ScreenshotManager.getSavedScreenshots(context)
+            }
+            galleryItems = items
+            isGalleryLoading = false
+        }
     }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
+            // Auto-refresh states when returning from System Settings
             if (event == Lifecycle.Event.ON_RESUME) {
                 isAccessibilityEnabled = SharedPermissionManager.isScreenshotAccessibilityEnabled(context)
+                hasOverlayPermission = SharedPermissionManager.hasOverlayPermission(context)
                 isFloatingShowing = JuganuaAccessibilityService.isScreenshotControlVisible()
                 refreshGallery()
             }
@@ -140,6 +159,7 @@ fun ScreenshotTakerScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    // Initial Gallery Load
     LaunchedEffect(Unit) { refreshGallery() }
 
     val importLauncher = rememberLauncherForActivityResult(
@@ -147,11 +167,13 @@ fun ScreenshotTakerScreen(
     ) { uri: Uri? ->
         uri?.let {
             scope.launch {
-                val item = ScreenshotManager.importImageUri(context, it)
+                isGalleryLoading = true
+                val item = withContext(Dispatchers.IO) { ScreenshotManager.importImageUri(context, it) }
                 if (item != null) {
                     refreshGallery()
                     Toast.makeText(context, "Image imported successfully", Toast.LENGTH_SHORT).show()
                 } else {
+                    isGalleryLoading = false
                     Toast.makeText(context, "Failed to import image", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -166,26 +188,36 @@ fun ScreenshotTakerScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             StatusBanner(
                 isAccessibilityEnabled = isAccessibilityEnabled,
+                hasOverlayPermission = hasOverlayPermission,
                 isFloatingShowing = isFloatingShowing,
+                onEnableAccessibility = {
+                    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(intent)
+                },
+                onEnableOverlay = {
+                    SharedPermissionManager.openOverlaySettings(context)
+                },
                 onToggleFloating = {
                     if (isFloatingShowing) {
                         JuganuaAccessibilityService.hideScreenshotControl()
                         isFloatingShowing = false
                     } else {
-                        if (SharedPermissionManager.hasOverlayPermission(context)) {
+                        if (hasOverlayPermission) {
                             val shown = JuganuaAccessibilityService.showScreenshotControl(context)
                             if (shown) {
                                 isFloatingShowing = true
-                                Toast.makeText(context, "Floating control enabled over other apps", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Floating control enabled", Toast.LENGTH_SHORT).show()
                             } else {
-                                Toast.makeText(context, "Please enable Accessibility Service in Settings", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Accessibility Service disconnected. Turn off and on again.", Toast.LENGTH_SHORT).show()
                             }
                         } else {
-                            SharedPermissionManager.openOverlaySettings(context)
+                            Toast.makeText(context, "Please enable Draw Over Other Apps first", Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
@@ -239,18 +271,35 @@ fun ScreenshotTakerScreen(
                 }
             }
 
-            // Delegated to ScreenshotGallery.kt
-            ScreenshotGallery(
-                galleryItems = galleryItems,
-                onDeleteSelected = { itemsToDelete ->
-                    ScreenshotManager.deleteScreenshots(itemsToDelete)
-                    refreshGallery()
-                    Toast.makeText(context, "Deleted ${itemsToDelete.size} items", Toast.LENGTH_SHORT).show()
-                },
-                onToggleSelectAll = { selectAll ->
-                    // Selection managed within ScreenshotGallery
+            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                if (isGalleryLoading) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(
+                            color = BrandPurple,
+                            strokeWidth = 3.dp
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("Loading screenshots...", color = TextMuted, fontSize = 13.sp)
+                    }
+                } else {
+                    // Delegated to ScreenshotGallery.kt
+                    ScreenshotGallery(
+                        galleryItems = galleryItems,
+                        onDeleteSelected = { itemsToDelete ->
+                            ScreenshotManager.deleteScreenshots(itemsToDelete)
+                            refreshGallery()
+                            Toast.makeText(context, "Deleted ${itemsToDelete.size} items", Toast.LENGTH_SHORT).show()
+                        },
+                        onToggleSelectAll = { selectAll ->
+                            // Selection managed within ScreenshotGallery
+                        }
+                    )
                 }
-            )
+            }
         }
     }
 
@@ -343,7 +392,7 @@ fun ScreenshotTakerScreen(
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        CircularProgressIndicator()
+                        CircularProgressIndicator(color = BrandPurple)
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(ocrProgressText, fontSize = 13.sp, color = BrandPurple)
                     }
@@ -366,6 +415,7 @@ fun ScreenshotTakerScreen(
             confirmButton = {
                 if (!isOcrRunning && ocrResultText.isNotBlank()) {
                     Button(
+                        colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
                         onClick = {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                             val clip = ClipData.newPlainText("OCR Text", ocrResultText)
@@ -385,57 +435,108 @@ fun ScreenshotTakerScreen(
 @Composable
 private fun StatusBanner(
     isAccessibilityEnabled: Boolean,
+    hasOverlayPermission: Boolean,
     isFloatingShowing: Boolean,
+    onEnableAccessibility: () -> Unit,
+    onEnableOverlay: () -> Unit,
     onToggleFloating: () -> Unit
 ) {
+    val isFullyReady = isAccessibilityEnabled && hasOverlayPermission
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, if (isAccessibilityEnabled) Color(0xFFA7F3D0) else BorderColor, RoundedCornerShape(12.dp)),
+            .border(
+                1.dp,
+                if (isFullyReady) Color(0xFFA7F3D0) else BorderColor,
+                RoundedCornerShape(12.dp)
+            ),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.padding(12.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = "Accessibility Service Status", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextDark)
-                    Text(
-                        text = if (isAccessibilityEnabled) "Service active & ready" else "Enable in Dashboard → Settings",
-                        fontSize = 11.sp,
-                        color = TextMuted
-                    )
-                }
+            // Live Accessibility Service Status
+            PermissionRow(
+                title = "Accessibility Service",
+                subtitle = if (isAccessibilityEnabled) "Active & Ready" else "Required to capture screens",
+                isGranted = isAccessibilityEnabled,
+                onEnable = onEnableAccessibility
+            )
 
-                if (isAccessibilityEnabled) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(StatusActiveBg)
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text("Ready ✓", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = StatusActiveText)
-                    }
-                }
-            }
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                thickness = 1.dp,
+                color = BorderColor
+            )
 
+            // Live Draw Over Other Apps Status
+            PermissionRow(
+                title = "Draw Over Other Apps",
+                subtitle = if (hasOverlayPermission) "Active & Ready" else "Required for floating controls",
+                isGranted = hasOverlayPermission,
+                onEnable = onEnableOverlay
+            )
+
+            // Floating Toolbar remains available as long as accessibility is enabled
             if (isAccessibilityEnabled) {
+                Spacer(modifier = Modifier.height(12.dp))
                 Button(
                     onClick = onToggleFloating,
-                    modifier = Modifier.fillMaxWidth().height(32.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(36.dp),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (isFloatingShowing) Color(0xFF0F172A) else BrandPurple
                     )
                 ) {
-                    Text(if (isFloatingShowing) "Hide Floating Toolbar" else "Show Floating Toolbar", fontSize = 11.sp)
+                    Text(
+                        text = if (isFloatingShowing) "Hide Floating Toolbar" else "Show Floating Toolbar",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PermissionRow(
+    title: String,
+    subtitle: String,
+    isGranted: Boolean,
+    onEnable: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextDark)
+            Text(text = subtitle, fontSize = 11.sp, color = TextMuted)
+        }
+        if (isGranted) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(StatusActiveBg)
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text("Ready ✓", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = StatusActiveText)
+            }
+        } else {
+            Button(
+                onClick = onEnable,
+                modifier = Modifier.height(28.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                shape = RoundedCornerShape(6.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = BrandPurple)
+            ) {
+                Text("Enable", fontSize = 11.sp)
             }
         }
     }
@@ -503,7 +604,8 @@ private fun PdfGenerateDialog(
                     ) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(22.dp),
-                            strokeWidth = 2.5.dp
+                            strokeWidth = 2.5.dp,
+                            color = BrandPurple
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
@@ -519,6 +621,7 @@ private fun PdfGenerateDialog(
         confirmButton = {
             Button(
                 enabled = !isGenerating,
+                colors = ButtonDefaults.buttonColors(containerColor = BrandPurple),
                 onClick = {
                     val cols: Int
                     val rows: Int
@@ -663,7 +766,7 @@ private fun PdfPreviewModalDialog(
             ) {
                 if (pdfPages.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
+                        CircularProgressIndicator(color = BrandPurple)
                     }
                 } else {
                     LazyColumn(
