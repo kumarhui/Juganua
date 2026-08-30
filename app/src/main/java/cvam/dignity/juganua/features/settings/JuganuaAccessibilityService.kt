@@ -1,4 +1,4 @@
-package cvam.dignity.juganua.features.settings
+﻿package cvam.dignity.juganua.features.settings
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
@@ -90,8 +90,8 @@ class JuganuaAccessibilityService : AccessibilityService() {
     private var clickIndicatorParams: WindowManager.LayoutParams? = null
 
     private val collapsedSizeDp = 52
-    private val expandedWidthDp = 280
-    private val expandedHeightDp = 52
+    private val expandedWidthDp = 320
+    private val expandedHeightDp = 112
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -449,4 +449,5 @@ class JuganuaAccessibilityService : AccessibilityService() {
         try { dispatchGesture(gesture, null, null) } catch (_: Exception) {}
     }
 }
+
 

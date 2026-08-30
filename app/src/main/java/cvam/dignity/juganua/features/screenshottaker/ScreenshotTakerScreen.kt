@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -114,6 +115,7 @@ fun ScreenshotTakerScreen(
 
     var showPdfConfigDialog by remember { mutableStateOf(false) }
     var showPdfPreviewDialog by remember { mutableStateOf(false) }
+    var isPdfGenerating by remember { mutableStateOf(false) }
     var previewPdfFile by remember { mutableStateOf<File?>(null) }
     var previewPdfLandscape by remember { mutableStateOf(false) }
 
@@ -255,17 +257,33 @@ fun ScreenshotTakerScreen(
     if (showPdfConfigDialog) {
         PdfGenerateDialog(
             selectedCount = galleryItems.size,
+            isGenerating = isPdfGenerating,
             onDismiss = { showPdfConfigDialog = false },
             onGenerate = { isLandscape, cols, rows ->
-                showPdfConfigDialog = false
+                isPdfGenerating = true
+
                 scope.launch {
-                    val tempFile = ScreenshotManager.generateTempPdf(context, galleryItems, isLandscape, cols, rows)
+                    val tempFile = ScreenshotManager.generateTempPdf(
+                        context,
+                        galleryItems,
+                        isLandscape,
+                        cols,
+                        rows
+                    )
+
+                    isPdfGenerating = false
+
                     if (tempFile != null && tempFile.exists()) {
                         previewPdfFile = tempFile
                         previewPdfLandscape = isLandscape
+                        showPdfConfigDialog = false
                         showPdfPreviewDialog = true
                     } else {
-                        Toast.makeText(context, "Failed to compile PDF preview", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            context,
+                            "Failed to compile PDF preview",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 }
             }
@@ -280,16 +298,26 @@ fun ScreenshotTakerScreen(
                 try {
                     val contentUri = FileProvider.getUriForFile(
                         context,
-                        "${context.packageName}.fileprovider",
+                        "cvam.dignity.juganua.provider",
                         previewPdfFile!!
                     )
-                    val intent = Intent(Intent.ACTION_VIEW).apply {
-                        setDataAndType(contentUri, "application/pdf")
+
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "application/pdf"
+                        putExtra(Intent.EXTRA_STREAM, contentUri)
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        clipData = ClipData.newRawUri("PDF", contentUri)
                     }
-                    context.startActivity(Intent.createChooser(intent, "Open PDF in..."))
+
+                    context.startActivity(
+                        Intent.createChooser(intent, "Open PDF in...")
+                    )
                 } catch (e: Exception) {
-                    Toast.makeText(context, "No PDF viewer app found", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        context,
+                        "Couldn't share PDF",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             },
             onSavePdf = {
@@ -379,7 +407,7 @@ private fun StatusBanner(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = "Accessibility Service Status", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextDark)
                     Text(
-                        text = if (isAccessibilityEnabled) "Service active & ready" else "Enable in Dashboard ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Settings",
+                        text = if (isAccessibilityEnabled) "Service active & ready" else "Enable in Dashboard → Settings",
                         fontSize = 11.sp,
                         color = TextMuted
                     )
@@ -392,7 +420,7 @@ private fun StatusBanner(
                             .background(StatusActiveBg)
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
-                        Text("Ready ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = StatusActiveText)
+                        Text("Ready ✓", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = StatusActiveText)
                     }
                 }
             }
@@ -416,70 +444,177 @@ private fun StatusBanner(
 @Composable
 private fun PdfGenerateDialog(
     selectedCount: Int,
+    isGenerating: Boolean,
     onDismiss: () -> Unit,
     onGenerate: (isLandscape: Boolean, cols: Int, rows: Int) -> Unit
 ) {
     var isLandscape by remember { mutableStateOf(false) }
-    var selectedGridOption by remember { mutableStateOf("2x3") }
+    var selectedGridOption by remember { mutableStateOf(6) }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Generate A4 PDF ($selectedCount images)") },
+        onDismissRequest = {
+            if (!isGenerating) onDismiss()
+        },
+        title = {
+            Text(
+                "Generate A4 PDF ($selectedCount images)",
+                fontWeight = FontWeight.Bold
+            )
+        },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Select Page Orientation:", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = {
-                            isLandscape = false
-                            selectedGridOption = "2x3"
-                        },
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = if (!isLandscape) BrandPurple.copy(alpha = 0.15f) else Color.Transparent
-                        )
-                    ) { Text("Portrait") }
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    "Select Page Orientation",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
 
-                    OutlinedButton(
-                        onClick = {
-                            isLandscape = true
-                            selectedGridOption = "4x2"
-                        },
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = if (isLandscape) BrandPurple.copy(alpha = 0.15f) else Color.Transparent
-                        )
-                    ) { Text("Landscape") }
-                }
+                SegmentedChoiceRow(
+                    options = listOf("Portrait", "Landscape"),
+                    selectedIndex = if (isLandscape) 1 else 0,
+                    enabled = !isGenerating,
+                    onSelected = { isLandscape = it == 1 }
+                )
 
-                Text("Grid Layout:", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (!isLandscape) {
-                        OutlinedButton(onClick = { selectedGridOption = "2x3" }) { Text("6/page (2x3)") }
-                        OutlinedButton(onClick = { selectedGridOption = "3x3" }) { Text("9/page (3x3)") }
-                    } else {
-                        OutlinedButton(onClick = { selectedGridOption = "4x2" }) { Text("8/page (4x2)") }
-                        OutlinedButton(onClick = { selectedGridOption = "4x3" }) { Text("12/page (4x3)") }
+                Text(
+                    "Grid Layout",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                SegmentedChoiceRow(
+                    options = listOf("6 per page", "9 per page"),
+                    selectedIndex = if (selectedGridOption == 6) 0 else 1,
+                    enabled = !isGenerating,
+                    onSelected = {
+                        selectedGridOption = if (it == 0) 6 else 9
+                    }
+                )
+
+                if (isGenerating) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            strokeWidth = 2.5.dp
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            "Preparing PDF preview…",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = BrandPurple
+                        )
                     }
                 }
             }
         },
         confirmButton = {
             Button(
+                enabled = !isGenerating,
                 onClick = {
-                    val (cols, rows) = when (selectedGridOption) {
-                        "2x3" -> 2 to 3
-                        "3x3" -> 3 to 3
-                        "4x2" -> 4 to 2
-                        "4x3" -> 4 to 3
-                        else -> 2 to 3
+                    val cols: Int
+                    val rows: Int
+
+                    if (selectedGridOption == 6) {
+                        if (isLandscape) {
+                            cols = 3
+                            rows = 2
+                        } else {
+                            cols = 2
+                            rows = 3
+                        }
+                    } else {
+                        cols = 3
+                        rows = 3
                     }
+
                     onGenerate(isLandscape, cols, rows)
                 }
-            ) { Text("Preview PDF") }
+            ) {
+                Text("Preview PDF")
+            }
         },
         dismissButton = {
-            OutlinedButton(onClick = onDismiss) { Text("Cancel") }
+            OutlinedButton(
+                enabled = !isGenerating,
+                onClick = onDismiss
+            ) {
+                Text("Cancel")
+            }
         }
     )
+}
+
+@Composable
+private fun SegmentedChoiceRow(
+    options: List<String>,
+    selectedIndex: Int,
+    enabled: Boolean,
+    onSelected: (Int) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(0.dp)
+    ) {
+        options.forEachIndexed { index, label ->
+            val selected = index == selectedIndex
+
+            OutlinedButton(
+                onClick = { onSelected(index) },
+                enabled = enabled,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(44.dp),
+                shape = when (index) {
+                    0 -> RoundedCornerShape(
+                        topStart = 10.dp,
+                        bottomStart = 10.dp,
+                        topEnd = 2.dp,
+                        bottomEnd = 2.dp
+                    )
+                    options.lastIndex -> RoundedCornerShape(
+                        topStart = 2.dp,
+                        bottomStart = 2.dp,
+                        topEnd = 10.dp,
+                        bottomEnd = 10.dp
+                    )
+                    else -> RoundedCornerShape(2.dp)
+                },
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor =
+                        if (selected) BrandPurple.copy(alpha = 0.14f)
+                        else Color.Transparent,
+                    contentColor =
+                        if (selected) BrandPurple
+                        else TextDark
+                ),
+                border = androidx.compose.foundation.BorderStroke(
+                    width = if (selected) 1.5.dp else 1.dp,
+                    color = if (selected) BrandPurple else BorderColor
+                ),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    horizontal = 8.dp,
+                    vertical = 0.dp
+                )
+            ) {
+                Text(
+                    label,
+                    fontSize = 12.sp,
+                    fontWeight =
+                        if (selected) FontWeight.Bold
+                        else FontWeight.Medium
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -554,16 +689,25 @@ private fun PdfPreviewModalDialog(
             }
         },
         confirmButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onOpenInOtherApp) {
-                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Open in Other App", fontSize = 11.sp)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                IconButton(onClick = onOpenInOtherApp) {
+                    Icon(
+                        Icons.Default.Share,
+                        contentDescription = "Open PDF in another app",
+                        modifier = Modifier.size(22.dp)
+                    )
                 }
-                Button(
-                    onClick = onSavePdf,
-                    colors = ButtonDefaults.buttonColors(containerColor = BrandPurple)
-                ) { Text("Save PDF", fontSize = 11.sp) }
+
+                IconButton(onClick = onSavePdf) {
+                    Icon(
+                        Icons.Default.Save,
+                        contentDescription = "Save PDF",
+                        modifier = Modifier.size(22.dp),
+                        tint = BrandPurple
+                    )
+                }
             }
         },
         dismissButton = {
@@ -571,4 +715,3 @@ private fun PdfPreviewModalDialog(
         }
     )
 }
-
