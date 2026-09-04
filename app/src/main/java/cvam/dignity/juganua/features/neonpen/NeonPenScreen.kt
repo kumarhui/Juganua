@@ -74,8 +74,13 @@ fun NeonPenScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    var isServiceRunning by remember { mutableStateOf(NeonOverlayService.isServiceRunning) }
-    var hasOverlayPermission by remember { mutableStateOf(PermissionUtils.hasOverlayPermission(context)) }
+    var isServiceRunning by remember {
+        mutableStateOf(NeonOverlayService.isServiceRunning)
+    }
+
+    var hasOverlayPermission by remember {
+        mutableStateOf(PermissionUtils.hasOverlayPermission(context))
+    }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -84,7 +89,9 @@ fun NeonPenScreen(
                 hasOverlayPermission = PermissionUtils.hasOverlayPermission(context)
             }
         }
+
         lifecycleOwner.lifecycle.addObserver(observer)
+
         NeonOverlayService.onServiceStateChanged = { running ->
             isServiceRunning = running
         }
@@ -95,77 +102,100 @@ fun NeonPenScreen(
         }
     }
 
-    Scaffold(
-        topBar = { }   ) { innerPadding ->
-        Column(
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+
+        StatusCard(
+            isServiceRunning = isServiceRunning
+        )
+
+        Card(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .fillMaxWidth()
+                .border(
+                    1.dp,
+                    BorderColor,
+                    RoundedCornerShape(16.dp)
+                ),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
         ) {
-            StatusCard(isServiceRunning = isServiceRunning)
-
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, BorderColor, RoundedCornerShape(16.dp)),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Floating Overlay Features",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = TextDark
-                    )
-                    Text(
-                        text = "Ã¢â‚¬Â¢ Draw on top of any app with glowing neon strokes\n" +
-                                "Ã¢â‚¬Â¢ Launch a floating paper card to write notes\n" +
-                                "Ã¢â‚¬Â¢ Auto-disappearing trail with custom duration\n" +
-                                "Ã¢â‚¬Â¢ Single-tap to toggle drawing, hold to open tools palette",
-                        fontSize = 13.sp,
-                        color = TextMuted,
-                        lineHeight = 20.sp
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Button(
-                onClick = {
-                    if (isServiceRunning) {
-                        NeonOverlayService.stopService(context)
-                    } else {
-                        if (hasOverlayPermission) {
-                            NeonOverlayService.startService(context)
-                        } else {
-                            onNavigateToSettings()
-                        }
-                    }
-                    isServiceRunning = NeonOverlayService.isServiceRunning
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isServiceRunning) Color(0xFF0F172A) else NeonPink,
-                    contentColor = Color.White
-                )
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = if (isServiceRunning) "Stop Floating Pen" else if (hasOverlayPermission) "Start Floating Pen" else "Grant Permissions in Settings",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
+                    text = "Floating Overlay Features",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = TextDark
+                )
+
+                Text(
+                    text =
+                        "• Draw on top of any app with glowing neon strokes\n" +
+                                "• Launch a floating paper card to write notes\n" +
+                                "• Auto-disappearing trail with custom duration\n" +
+                                "• Single-tap to toggle drawing, hold to open tools palette",
+                    fontSize = 13.sp,
+                    color = TextMuted,
+                    lineHeight = 20.sp
                 )
             }
+        }
+
+        Spacer(
+            modifier = Modifier.height(8.dp)
+        )
+
+        Button(
+            onClick = {
+                if (isServiceRunning) {
+                    NeonOverlayService.stopService(context)
+                } else {
+                    if (hasOverlayPermission) {
+                        NeonOverlayService.startService(context)
+                    } else {
+                        onNavigateToSettings()
+                    }
+                }
+
+                isServiceRunning =
+                    NeonOverlayService.isServiceRunning
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor =
+                    if (isServiceRunning) {
+                        Color(0xFF0F172A)
+                    } else {
+                        NeonPink
+                    },
+                contentColor = Color.White
+            )
+        ) {
+            Text(
+                text =
+                    if (isServiceRunning) {
+                        "Stop Floating Pen"
+                    } else if (hasOverlayPermission) {
+                        "Start Floating Pen"
+                    } else {
+                        "Grant Permissions in Settings"
+                    },
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

@@ -426,28 +426,16 @@ fun PassportPhotoScreen(
      * ---------------------------------------------------------
      */
 
-    Box(
-        modifier =
-            Modifier.fillMaxSize()
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(
+                horizontal = 16.dp,
+                vertical = 8.dp
+            ),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .verticalScroll(
-                        rememberScrollState()
-                    )
-                    .padding(
-                        horizontal = 16.dp,
-                        vertical = 16.dp
-                    ),
-
-            verticalArrangement =
-                Arrangement.spacedBy(
-                    16.dp
-                )
-        ) {
 
             /*
              * =================================================
@@ -506,10 +494,6 @@ fun PassportPhotoScreen(
                     }
 
                 } else {
-
-                    Spacer(
-                        Modifier.height(40.dp)
-                    )
 
                     Card(
                         modifier =
@@ -1176,7 +1160,7 @@ fun PassportPhotoScreen(
                 Modifier.height(12.dp)
             )
         }
-    }
+
 
     /*
      * =========================================================

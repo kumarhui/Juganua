@@ -22,6 +22,8 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DocumentScanner
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Draw
 import androidx.compose.material.icons.filled.FilterFrames
 import androidx.compose.material.icons.filled.LockOpen
@@ -38,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -46,6 +49,7 @@ import cvam.dignity.juganua.common.UsageTracker
 import cvam.dignity.juganua.features.neonpen.NeonPenScreen
 import cvam.dignity.juganua.features.whatsappchecker.WhatsappCheckerScreen
 import cvam.dignity.juganua.features.bogascanner.BogaScannerScreen
+import cvam.dignity.juganua.features.bogascanner.BogaPdfUtils
 import cvam.dignity.juganua.features.screenshottaker.ScreenshotTakerScreen
 import cvam.dignity.juganua.features.mergepdf.MergePdfScreen
 import cvam.dignity.juganua.features.pdfunlocker.PdfUnlockerScreen
@@ -118,6 +122,8 @@ fun JuganuaAppShell(
     requestedUris: List<Uri>?,
     onHandled: () -> Unit
 ) {
+    val context = LocalContext.current
+
     var activeTool by rememberSaveable {
         mutableStateOf<String?>(null)
     }
@@ -167,42 +173,143 @@ fun JuganuaAppShell(
         }
     }
 
+    var bogaSelectedCount by rememberSaveable { mutableStateOf(0) }
+    var bogaSelectedUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var bogaSelectionMenuExpanded by rememberSaveable { mutableStateOf(false) }
+    var bogaSelectAllAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var bogaDeleteAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var bogaClearSelectionAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+    val isBogaSelectionActive =
+        activeTool == UsageTracker.ID_BOGA_SCANNER && bogaSelectedCount > 0
+
+    LaunchedEffect(activeTool) {
+        if (activeTool != UsageTracker.ID_BOGA_SCANNER) {
+            bogaSelectedCount = 0
+            bogaSelectedUris = emptyList()
+            bogaSelectionMenuExpanded = false
+            bogaSelectAllAction = null
+            bogaDeleteAction = null
+            bogaClearSelectionAction = null
+        }
+    }
+
     val isDashboard =
         activeTool == null
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text =
-                            if (isDashboard) {
+            if (isBogaSelectionActive) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = "$bogaSelectedCount selected",
+                            fontWeight = FontWeight.Black,
+                            fontSize = 16.sp
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = {
+                                bogaClearSelectionAction?.invoke()
+                                bogaSelectedCount = 0
+                                bogaSelectedUris = emptyList()
+                                bogaSelectionMenuExpanded = false
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = "Exit selection mode"
+                            )
+                        }
+                    },
+                    actions = {
+                        Box {
+                            IconButton(
+                                onClick = {
+                                    bogaSelectionMenuExpanded = true
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.MoreVert,
+                                    contentDescription = "Selection options"
+                                )
+                            }
+
+                            DropdownMenu(
+                                expanded = bogaSelectionMenuExpanded,
+                                onDismissRequest = {
+                                    bogaSelectionMenuExpanded = false
+                                }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Share") },
+                                    onClick = {
+                                        bogaSelectionMenuExpanded = false
+                                        BogaPdfUtils.shareImages(
+                                            context,
+                                            bogaSelectedUris
+                                        )
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Print") },
+                                    onClick = {
+                                        bogaSelectionMenuExpanded = false
+                                        BogaPdfUtils.printImages(
+                                            context,
+                                            bogaSelectedUris
+                                        )
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Delete") },
+                                    onClick = {
+                                        bogaSelectionMenuExpanded = false
+                                        bogaDeleteAction?.invoke()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Select All") },
+                                    onClick = {
+                                        bogaSelectionMenuExpanded = false
+                                        bogaSelectAllAction?.invoke()
+                                    }
+                                )
+                            }
+                        }
+                    }
+                )
+            } else {
+                CenterAlignedTopAppBar(
+                    title = {
+                        Text(
+                            text = if (isDashboard) {
                                 "JUGANUA"
                             } else {
                                 getToolTitle(activeTool)
                             },
-                        fontWeight = FontWeight.Black,
-                        fontSize = 16.sp
-                    )
-                },
-
-                navigationIcon = {
-                    if (!isDashboard) {
-                        IconButton(
-                            onClick = {
-                                activeTool = null
-                                sharedUris = null
+                            fontWeight = FontWeight.Black,
+                            fontSize = 16.sp
+                        )
+                    },
+                    navigationIcon = {
+                        if (!isDashboard) {
+                            IconButton(
+                                onClick = {
+                                    activeTool = null
+                                    sharedUris = null
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back"
+                                )
                             }
-                        ) {
-                            Icon(
-                                imageVector =
-                                    Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back"
-                            )
                         }
                     }
-                }
-            )
+                )
+            }
         }
     ) { paddingValues ->
 
@@ -258,6 +365,23 @@ fun JuganuaAppShell(
 
                                     else -> null
                                 }
+                        },
+
+                        onBogaSelectionChanged = { count, uris ->
+                            bogaSelectedCount = count
+                            bogaSelectedUris = uris
+                        },
+
+                        onBogaRegisterSelectionActions = { selectAll, deleteSelected, clearSelection ->
+                            bogaSelectAllAction = selectAll
+                            bogaDeleteAction = deleteSelected
+                            bogaClearSelectionAction = clearSelection
+                        },
+
+                        onBogaClearSelection = {
+                            bogaSelectedCount = 0
+                            bogaSelectedUris = emptyList()
+                            bogaSelectionMenuExpanded = false
                         }
                     )
                 }
@@ -279,7 +403,14 @@ private fun ToolScreen(
     toolId: String,
     sharedUris: List<Uri>?,
     onBack: () -> Unit,
-    onNavigate: (String, Any?) -> Unit
+    onNavigate: (String, Any?) -> Unit,
+    onBogaSelectionChanged: (Int, List<Uri>) -> Unit = { _, _ -> },
+    onBogaRegisterSelectionActions: (
+        selectAll: () -> Unit,
+        deleteSelected: () -> Unit,
+        clearSelection: () -> Unit
+    ) -> Unit = { _, _, _ -> },
+    onBogaClearSelection: () -> Unit = {}
 ) {
     when (toolId) {
 
@@ -345,7 +476,10 @@ private fun ToolScreen(
 
         UsageTracker.ID_BOGA_SCANNER -> {
             BogaScannerScreen(
-                onBack = onBack
+                onBack = onBack,
+                onSelectionChanged = onBogaSelectionChanged,
+                onClearSelection = onBogaClearSelection,
+                onRegisterSelectionActions = onBogaRegisterSelectionActions
             )
         }
 

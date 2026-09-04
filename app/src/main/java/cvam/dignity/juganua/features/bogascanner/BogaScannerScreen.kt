@@ -51,7 +51,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -82,7 +81,14 @@ private enum class BogaScreen {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BogaScannerScreen(
-    onBack: (() -> Unit)? = null
+    onBack: (() -> Unit)? = null,
+    onSelectionChanged: (count: Int, uris: List<Uri>) -> Unit = { _, _ -> },
+    onClearSelection: () -> Unit = {},
+    onRegisterSelectionActions: (
+        selectAll: () -> Unit,
+        deleteSelected: () -> Unit,
+        clearSelection: () -> Unit
+    ) -> Unit = { _, _, _ -> }
 ) {
     val context = LocalContext.current
     val activity = remember(context) { context as? Activity }
@@ -135,7 +141,10 @@ fun BogaScannerScreen(
         when {
             showBackScanDialog -> showBackScanDialog = false
             showDocTypeDialog -> showDocTypeDialog = false
-            selectionActive -> selectedGalleryItems = emptySet()
+            selectionActive -> {
+                selectedGalleryItems = emptySet()
+                onClearSelection()
+            }
             currentScreen == BogaScreen.PREVIEW -> {
                 resetPreviewState()
                 currentScreen = BogaScreen.HOME
@@ -194,269 +203,291 @@ fun BogaScannerScreen(
         }
     }
 
-    Scaffold(
-        floatingActionButton = {
-            if (!selectionActive && currentScreen == BogaScreen.HOME) {
-                FloatingActionButton(onClick = { showDocTypeDialog = true }) {
-                    Icon(Icons.Filled.Add, contentDescription = "Add Document")
+    // The shared JuganuaAppShell owns the only top bar and the selection menu.
+    LaunchedEffect(selectedGalleryItems, galleryItems) {
+        onSelectionChanged(
+            selectedGalleryItems.size,
+            selectedGalleryItems.map { it.uri }
+        )
+        onRegisterSelectionActions(
+            { selectedGalleryItems = galleryItems.toSet() },
+            {
+                if (selectedGalleryItems.isNotEmpty()) {
+                    showDeleteConfirmDialog = true
                 }
+            },
+            {
+                selectedGalleryItems = emptySet()
+                onClearSelection()
             }
-        }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            when (currentScreen) {
-                BogaScreen.HOME -> {
-                    if (galleryItems.isEmpty()) {
-                        Column(
-                            modifier = Modifier.fillMaxSize(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Text("No scanned sheets", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("Tap + to create your first sheet.")
-                        }
-                    } else {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(2),
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(8.dp)
-                        ) {
-                            items(items = galleryItems, key = { item -> item.uri.toString() }) { item ->
-                                val isSelected = selectedGalleryItems.contains(item)
-                                DocumentCard(
-                                    item = item,
-                                    isSelected = isSelected,
-                                    selectionActive = selectionActive,
-                                    onClick = {
-                                        if (selectionActive) {
-                                            val newSet = selectedGalleryItems.toMutableSet()
-                                            if (isSelected) newSet.remove(item) else newSet.add(item)
-                                            selectedGalleryItems = newSet
-                                        } else {
+        )
+    }
+
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        when (currentScreen) {
+            BogaScreen.HOME -> {
+                if (galleryItems.isEmpty()) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text("No scanned sheets", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Tap + to create your first sheet.")
+                    }
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(8.dp)
+                    ) {
+                        items(items = galleryItems, key = { item -> item.uri.toString() }) { item ->
+                            val isSelected = selectedGalleryItems.contains(item)
+                            DocumentCard(
+                                item = item,
+                                isSelected = isSelected,
+                                selectionActive = selectionActive,
+                                onClick = {
+                                    if (selectionActive) {
+                                        val newSet = selectedGalleryItems.toMutableSet()
+                                        if (isSelected) newSet.remove(item) else newSet.add(item)
+                                        selectedGalleryItems = newSet
+                                    } else {
+                                        previewGalleryItem = item
+                                        currentScreen = BogaScreen.GALLERY_PREVIEW
+                                    }
+                                },
+                                onLongClick = {
+                                    val newSet = selectedGalleryItems.toMutableSet()
+                                    newSet.add(item)
+                                    selectedGalleryItems = newSet
+                                },
+                                onAction = { action ->
+                                    when (action) {
+                                        "Preview" -> {
                                             previewGalleryItem = item
                                             currentScreen = BogaScreen.GALLERY_PREVIEW
                                         }
-                                    },
-                                    onLongClick = {
-                                        val newSet = selectedGalleryItems.toMutableSet()
-                                        newSet.add(item)
-                                        selectedGalleryItems = newSet
-                                    },
-                                    onAction = { action ->
-                                        when (action) {
-                                            "Preview" -> {
-                                                previewGalleryItem = item
-                                                currentScreen = BogaScreen.GALLERY_PREVIEW
-                                            }
-                                            "Share" -> BogaPdfUtils.shareImages(context, listOf(item.uri))
-                                            "Print" -> BogaPdfUtils.printImages(context, listOf(item.uri))
-                                            "Delete" -> {
-                                                selectedGalleryItems = setOf(item)
-                                                showDeleteConfirmDialog = true
-                                            }
-                                            "Change Layout", "Rescan Front", "Rescan Back" -> {
-                                                Toast.makeText(context, "Cannot modify saved documents.", Toast.LENGTH_LONG).show()
-                                            }
+                                        "Share" -> BogaPdfUtils.shareImages(context, listOf(item.uri))
+                                        "Print" -> BogaPdfUtils.printImages(context, listOf(item.uri))
+                                        "Delete" -> {
+                                            selectedGalleryItems = setOf(item)
+                                            showDeleteConfirmDialog = true
+                                        }
+                                        "Change Layout", "Rescan Front", "Rescan Back" -> {
+                                            Toast.makeText(context, "Cannot modify saved documents.", Toast.LENGTH_LONG).show()
                                         }
                                     }
-                                )
-                            }
+                                }
+                            )
                         }
                     }
                 }
-                BogaScreen.PREVIEW -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        if (isProcessing) {
-                            CircularProgressIndicator()
-                            Text("Rendering A4 Layout...", modifier = Modifier.padding(top = 8.dp))
-                        } else {
-                            previewBitmaps.forEach { bmp ->
-                                Image(
-                                    bitmap = bmp.asImageBitmap(),
-                                    contentDescription = "A4 Preview",
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .aspectRatio(210f / 297f)
-                                        .border(1.dp, Color.LightGray),
-                                    contentScale = ContentScale.Fit
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                            }
+            }
+            BogaScreen.PREVIEW -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    if (isProcessing) {
+                        CircularProgressIndicator()
+                        Text("Rendering A4 Layout...", modifier = Modifier.padding(top = 8.dp))
+                    } else {
+                        previewBitmaps.forEach { bmp ->
+                            Image(
+                                bitmap = bmp.asImageBitmap(),
+                                contentDescription = "A4 Preview",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(210f / 297f)
+                                    .border(1.dp, Color.LightGray),
+                                contentScale = ContentScale.Fit
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
 
-                            if (isIdCardMode) {
-                                Button(
-                                    onClick = { isVerticalLayout = !isVerticalLayout },
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text(if (isVerticalLayout) "Switch to Side-by-Side" else "Switch to Vertical")
-                                }
-                            }
-
+                        if (isIdCardMode) {
                             Button(
-                                onClick = {
-                                    scope.launch {
-                                        previewBitmaps.forEach { bmp ->
-                                            val prefix = if (isIdCardMode) "IDCARD_" else "NORMAL_"
-                                            BogaPdfUtils.saveBitmapToGallery(context, bmp, prefix)
-                                        }
-                                        Toast.makeText(context, "Saved to Gallery", Toast.LENGTH_SHORT).show()
-                                        resetPreviewState()
-                                        currentScreen = BogaScreen.HOME
-                                    }
-                                },
+                                onClick = { isVerticalLayout = !isVerticalLayout },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text("Save to Gallery")
+                                Text(if (isVerticalLayout) "Switch to Side-by-Side" else "Switch to Vertical")
                             }
+                        }
 
-                            if (isIdCardMode && activity != null) {
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    previewBitmaps.forEach { bmp ->
+                                        val prefix = if (isIdCardMode) "IDCARD_" else "NORMAL_"
+                                        BogaPdfUtils.saveBitmapToGallery(context, bmp, prefix)
+                                    }
+                                    Toast.makeText(context, "Saved to Gallery", Toast.LENGTH_SHORT).show()
+                                    resetPreviewState()
+                                    currentScreen = BogaScreen.HOME
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Save to Gallery")
+                        }
+
+                        if (isIdCardMode && activity != null) {
+                            OutlinedButton(
+                                onClick = { BogaScanner.rescanFront(activity, scannerLauncher) },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Rescan Front")
+                            }
+                            if (backUri != null) {
                                 OutlinedButton(
-                                    onClick = { BogaScanner.rescanFront(activity, scannerLauncher) },
+                                    onClick = { BogaScanner.rescanBack(activity, scannerLauncher) },
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Text("Rescan Front")
+                                    Text("Rescan Back")
                                 }
-                                if (backUri != null) {
-                                    OutlinedButton(
-                                        onClick = { BogaScanner.rescanBack(activity, scannerLauncher) },
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Text("Rescan Back")
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                BogaScreen.GALLERY_PREVIEW -> {
-                    previewGalleryItem?.let { item ->
-                        var bmp by remember { mutableStateOf<Bitmap?>(null) }
-                        LaunchedEffect(item.uri) {
-                            scope.launch(Dispatchers.IO) {
-                                try {
-                                    @Suppress("DEPRECATION")
-                                    val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                                        ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, item.uri))
-                                    } else {
-                                        MediaStore.Images.Media.getBitmap(context.contentResolver, item.uri)
-                                    }
-                                    withContext(Dispatchers.Main) {
-                                        bmp = bitmap
-                                    }
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
-                            }
-                        }
-
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            if (bmp == null) {
-                                CircularProgressIndicator()
-                            } else {
-                                Image(
-                                    bitmap = bmp!!.asImageBitmap(),
-                                    contentDescription = "Full Preview",
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .aspectRatio(210f / 297f)
-                                        .padding(16.dp)
-                                        .border(1.dp, Color.LightGray),
-                                    contentScale = ContentScale.Fit
-                                )
                             }
                         }
                     }
                 }
             }
-        }
-
-        if (showDocTypeDialog && activity != null) {
-            AlertDialog(
-                onDismissRequest = { showDocTypeDialog = false },
-                title = { Text("Add Document") },
-                text = { Text("Choose the type of document you want to scan.") },
-                confirmButton = {
-                    Button(onClick = {
-                        showDocTypeDialog = false
-                        BogaScanner.startInitialFrontScan(activity, scannerLauncher)
-                    }) {
-                        Text("ID Card")
+            BogaScreen.GALLERY_PREVIEW -> {
+                previewGalleryItem?.let { item ->
+                    var bmp by remember { mutableStateOf<Bitmap?>(null) }
+                    LaunchedEffect(item.uri) {
+                        scope.launch(Dispatchers.IO) {
+                            try {
+                                @Suppress("DEPRECATION")
+                                val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                                    ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, item.uri))
+                                } else {
+                                    MediaStore.Images.Media.getBitmap(context.contentResolver, item.uri)
+                                }
+                                withContext(Dispatchers.Main) {
+                                    bmp = bitmap
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }
                     }
-                },
-                dismissButton = {
-                    OutlinedButton(onClick = {
-                        showDocTypeDialog = false
-                        BogaScanner.startNormalScan(activity, scannerLauncher)
-                    }) {
-                        Text("Normal Images")
+
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        if (bmp == null) {
+                            CircularProgressIndicator()
+                        } else {
+                            Image(
+                                bitmap = bmp!!.asImageBitmap(),
+                                contentDescription = "Full Preview",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(210f / 297f)
+                                    .padding(16.dp)
+                                    .border(1.dp, Color.LightGray),
+                                contentScale = ContentScale.Fit
+                            )
+                        }
                     }
                 }
-            )
+            }
         }
-
-        if (showBackScanDialog && activity != null) {
-            AlertDialog(
-                onDismissRequest = { /* Force user choice */ },
-                title = { Text("Scan Back Side?") },
-                text = { Text("Do you want to scan the back of the ID card?") },
-                confirmButton = {
-                    Button(onClick = {
-                        showBackScanDialog = false
-                        BogaScanner.startInitialBackScan(activity, scannerLauncher)
-                    }) {
-                        Text("Scan Back")
-                    }
-                },
-                dismissButton = {
-                    OutlinedButton(onClick = {
-                        showBackScanDialog = false
-                        currentScreen = BogaScreen.PREVIEW
-                    }) {
-                        Text("Skip")
-                    }
-                }
-            )
-        }
-
-        if (showDeleteConfirmDialog) {
-            AlertDialog(
-                onDismissRequest = { showDeleteConfirmDialog = false },
-                title = { Text("Delete Documents?") },
-                text = { Text("Are you sure you want to delete ${selectedGalleryItems.size} selected items? This cannot be undone.") },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            BogaPdfUtils.deleteImages(context, selectedGalleryItems.map { it.uri })
-                            selectedGalleryItems = emptySet()
-                            showDeleteConfirmDialog = false
-                            currentScreen = BogaScreen.HOME
-                            loadGallery()
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                    ) {
-                        Text("Delete")
-                    }
-                },
-                dismissButton = {
-                    OutlinedButton(onClick = { showDeleteConfirmDialog = false }) {
-                        Text("Cancel")
-                    }
-                }
-            )
+        if (!selectionActive && currentScreen == BogaScreen.HOME) {
+            FloatingActionButton(
+                onClick = { showDocTypeDialog = true },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp)
+            ) {
+                Icon(
+                    Icons.Filled.Add,
+                    contentDescription = "Add Document"
+                )
+            }
         }
     }
+    if (showDocTypeDialog && activity != null) {
+        AlertDialog(
+            onDismissRequest = { showDocTypeDialog = false },
+            title = { Text("Add Document") },
+            text = { Text("Choose the type of document you want to scan.") },
+            confirmButton = {
+                Button(onClick = {
+                    showDocTypeDialog = false
+                    BogaScanner.startInitialFrontScan(activity, scannerLauncher)
+                }) {
+                    Text("ID Card")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = {
+                    showDocTypeDialog = false
+                    BogaScanner.startNormalScan(activity, scannerLauncher)
+                }) {
+                    Text("Normal Images")
+                }
+            }
+        )
+    }
+
+    if (showBackScanDialog && activity != null) {
+        AlertDialog(
+            onDismissRequest = { /* Force user choice */ },
+            title = { Text("Scan Back Side?") },
+            text = { Text("Do you want to scan the back of the ID card?") },
+            confirmButton = {
+                Button(onClick = {
+                    showBackScanDialog = false
+                    BogaScanner.startInitialBackScan(activity, scannerLauncher)
+                }) {
+                    Text("Scan Back")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = {
+                    showBackScanDialog = false
+                    currentScreen = BogaScreen.PREVIEW
+                }) {
+                    Text("Skip")
+                }
+            }
+        )
+    }
+
+    if (showDeleteConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmDialog = false },
+            title = { Text("Delete Documents?") },
+            text = { Text("Are you sure you want to delete ${selectedGalleryItems.size} selected items? This cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        BogaPdfUtils.deleteImages(context, selectedGalleryItems.map { it.uri })
+                        selectedGalleryItems = emptySet()
+                        onClearSelection()
+                        showDeleteConfirmDialog = false
+                        currentScreen = BogaScreen.HOME
+                        loadGallery()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showDeleteConfirmDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
+
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

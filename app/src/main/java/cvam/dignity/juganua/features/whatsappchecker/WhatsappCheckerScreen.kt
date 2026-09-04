@@ -44,13 +44,9 @@ fun WhatsappCheckerScreen(modifier: Modifier = Modifier) {
     val brush = Brush.verticalGradient(
         listOf(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
     )
-
-    Scaffold(
-        topBar = { }    ) { paddingValues ->
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .padding(paddingValues)
                 .background(brush)
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
@@ -80,7 +76,7 @@ fun WhatsappCheckerScreen(modifier: Modifier = Modifier) {
                 }
             }
         }
-    }
+
 }
 
 @Composable
